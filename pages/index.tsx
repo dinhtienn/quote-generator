@@ -60,6 +60,16 @@ function isGraphQLResultForQuotesQueryName(
   );
 }
 
+function isGraphQLResultForGenerateAQuote(
+  response: any
+): response is GraphQLResult<{
+  generateAQuote: {
+    items: [GenerateAQuoteData];
+  };
+}> {
+  return response.data && response.data.generateAQuote;
+}
+
 export default function Home() {
   const [numberOfQuotes, setNumberOfQuotes] = useState<Number | null>(0);
   const [openGenerator, setOpenGenerator] = useState(false);
@@ -111,6 +121,11 @@ export default function Home() {
           input: runFunctionStringified,
         },
       });
+
+      if (!isGraphQLResultForGenerateAQuote(response))
+        throw new Error("Unexpected response from API.graphql");
+      if (!response.data) throw new Error("Response data is undefined");
+
       const responseStringified = JSON.stringify(response.data.generateAQuote);
       const responseReStringified = JSON.parse(responseStringified);
       const bodyIndex = responseReStringified.indexOf("body=") + 5;
