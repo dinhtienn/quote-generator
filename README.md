@@ -1,5 +1,7 @@
 # Tutorial from [BrianHHough's freecodecamp course](https://www.youtube.com/watch?v=FRmCxj9K7II)
 
+## Deploy at: [Link](https://prod.d1f6vn7fbclr77.amplifyapp.com/)
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
