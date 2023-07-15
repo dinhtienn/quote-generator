@@ -23,8 +23,18 @@ import Clouds1 from "../assets/cloud-and-thunder.png";
 import Clouds2 from "../assets/cloudy-weather.png";
 import React, { useEffect, useState } from "react";
 import { API } from "aws-amplify";
-import { quoteQueryName } from "@/src/graphql/queries";
+import { generateAQuote, quoteQueryName } from "@/src/graphql/queries";
 import { GraphQLResult } from "@aws-amplify/api-graphql";
+import QuoteGeneratorModal from "@/components/QuoteGenerator";
+
+// interface for our appsync <> lambda JSON response
+interface GenerateAQuoteData {
+  generateAQuote: {
+    statusCode: number;
+    headers: { [key: string]: string };
+    body: string;
+  };
+}
 
 // interface for our DynamoDB object
 interface UpdateQuoteInfoData {
@@ -52,6 +62,9 @@ function isGraphQLResultForQuotesQueryName(
 
 export default function Home() {
   const [numberOfQuotes, setNumberOfQuotes] = useState<Number | null>(0);
+  const [openGenerator, setOpenGenerator] = useState(false);
+  const [processingQuote, setProcessingQuote] = useState(false);
+  const [quoteReceived, setQuoteReceived] = useState<String | null>(null);
 
   // Function to fetch DynamoDB object (quotes generated)
   const updateQuoteInfo = async () => {
@@ -77,6 +90,46 @@ export default function Home() {
     }
   };
 
+  const handleCloseGenerator = () => {
+    setOpenGenerator(false);
+    setProcessingQuote(false);
+    setQuoteReceived(null);
+  };
+
+  const handleOpenGenerator = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setOpenGenerator(true);
+    setProcessingQuote(true);
+    try {
+      // Run Lambda function
+      const runFunction = "runFunction";
+      const runFunctionStringified = JSON.stringify(runFunction);
+      const response = await API.graphql<GenerateAQuoteData>({
+        query: generateAQuote,
+        authMode: "AWS_IAM",
+        variables: {
+          input: runFunctionStringified,
+        },
+      });
+      const responseStringified = JSON.stringify(response.data.generateAQuote);
+      const responseReStringified = JSON.parse(responseStringified);
+      const bodyIndex = responseReStringified.indexOf("body=") + 5;
+      const bodyAndBase64 = responseReStringified.substring(bodyIndex);
+      const bodyArray = bodyAndBase64.split(",");
+      const body = bodyArray[0];
+      setQuoteReceived(body);
+
+      // End state:
+      setProcessingQuote(false);
+
+      // Fetch if any quotes were generated from counter
+      updateQuoteInfo();
+    } catch (error) {
+      console.log("error generating quote:", error);
+      setProcessingQuote(false);
+    }
+  };
+
   useEffect(() => {
     updateQuoteInfo();
   }, []);
@@ -91,7 +144,14 @@ export default function Home() {
       </Head>
       {/* Background */}
       <GradientBackgroundCon>
-        {/* <QuoteGeneratorModal /> */}
+        <QuoteGeneratorModal
+          open={openGenerator}
+          close={handleCloseGenerator}
+          processingQuote={processingQuote}
+          setProcessingQuote={setProcessingQuote}
+          quoteReceived={quoteReceived}
+          setQuoteReceived={setQuoteReceived}
+        />
         <QuoteGeneratorCon>
           <QuoteGeneratorInnerCon>
             <QuoteGeneratorTitle>
@@ -110,10 +170,8 @@ export default function Home() {
               </FooterLink>
             </QuoteGeneratorSubTitle>
 
-            <GenerateQuoteButton>
-              <GenerateQuoteButtonText onClick={null}>
-                Make a Quote
-              </GenerateQuoteButtonText>
+            <GenerateQuoteButton onClick={handleOpenGenerator}>
+              <GenerateQuoteButtonText>Make a Quote</GenerateQuoteButtonText>
             </GenerateQuoteButton>
           </QuoteGeneratorInnerCon>
         </QuoteGeneratorCon>
